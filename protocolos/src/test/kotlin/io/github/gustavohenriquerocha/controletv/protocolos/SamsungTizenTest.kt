@@ -45,7 +45,7 @@ class SamsungTizenTest {
 
     @After
     fun descer() {
-        abertos.forEach { it.cancel() }
+        abertos.forEach { it.close(1000, null) }
         servidor.shutdown()
     }
 
