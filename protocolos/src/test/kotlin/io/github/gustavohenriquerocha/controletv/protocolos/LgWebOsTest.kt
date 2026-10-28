@@ -32,6 +32,7 @@ class LgWebOsTest {
     )
 
     private val tvPrincipal = object : WebSocketListener() {
+        override fun onOpen(webSocket: WebSocket, response: Response) { abertos += webSocket }
         override fun onMessage(webSocket: WebSocket, text: String) {
             val msg = Json.parseToJsonElement(text).jsonObject
             principal += msg
@@ -48,7 +49,7 @@ class LgWebOsTest {
     }
 
     private val tvPonteiro = object : WebSocketListener() {
-        override fun onOpen(webSocket: WebSocket, response: Response) {}
+        override fun onOpen(webSocket: WebSocket, response: Response) { abertos += webSocket }
         override fun onMessage(webSocket: WebSocket, text: String) {
             ponteiro += text
         }
@@ -61,8 +62,14 @@ class LgWebOsTest {
         servidor.start()
     }
 
+    /** Conexões abertas pela TV falsa: derrubadas antes do shutdown, senão ele espera para sempre. */
+    private val abertos = java.util.concurrent.CopyOnWriteArrayList<WebSocket>()
+
     @After
-    fun descer() = servidor.shutdown()
+    fun descer() {
+        abertos.forEach { it.cancel() }
+        servidor.shutdown()
+    }
 
     private fun tv(prazo: Long = 5_000) =
         LgWebOs(servidor.hostName, listOf(servidor.port to false), prazoPareamentoMs = prazo)

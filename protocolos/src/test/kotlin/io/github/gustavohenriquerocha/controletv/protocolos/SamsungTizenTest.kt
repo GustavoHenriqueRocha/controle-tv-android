@@ -29,6 +29,7 @@ class SamsungTizenTest {
     fun subir() {
         servidor.enqueue(MockResponse().withWebSocketUpgrade(object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
+                abertos += webSocket
                 webSocket.send(aoAbrir)
             }
 
@@ -39,8 +40,14 @@ class SamsungTizenTest {
         servidor.start()
     }
 
+    /** Conexões abertas pela TV falsa: derrubadas antes do shutdown, senão ele espera para sempre. */
+    private val abertos = java.util.concurrent.CopyOnWriteArrayList<WebSocket>()
+
     @After
-    fun descer() = servidor.shutdown()
+    fun descer() {
+        abertos.forEach { it.cancel() }
+        servidor.shutdown()
+    }
 
     private fun tv() = SamsungTizen(servidor.hostName, listOf(servidor.port to false), prazoPareamentoMs = 3_000)
 
