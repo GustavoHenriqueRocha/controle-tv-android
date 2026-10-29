@@ -24,7 +24,7 @@ Pontos conhecidos de incerteza nos não testados:
 
 - **NetCast 2012 (ROAP):** os nomes das tags XML do comando seguem a documentação antiga da LG. Muitas TVs 2013 também aceitam ROAP.
 - **webOS:** o registro usa o manifesto público que as bibliotecas abertas usam. Firmwares recentes só aceitam `wss://` na 3001 (com certificado autoassinado); o app tenta 3001 e cai para 3000. O sinal da rolagem (`dy`) do pointer socket não foi conferido.
-- **Samsung:** modelos 2018+ exigem `wss://` na 8002 e token; 2016–2017 usam `ws://` na 8001 sem token. O app tenta nessa ordem. O formato de ponteiro e texto varia entre anos de firmware.
+- **Samsung:** modelos 2018+ exigem `wss://` na 8002 e token; 2016–2017 usam `ws://` na 8001 sem token. O app tenta nessa ordem. O formato de ponteiro e texto varia entre anos de firmware. Para **ligar** a TV pelo app (Wake-on-LAN), ative na TV *Configurações > Geral > Rede > Configurações especialistas > Ligar com dispositivo móvel*; o MAC é lido da TV no primeiro pareamento.
 - **Roku:** aparelhos recentes vêm com "Controle por apps móveis" limitado; é preciso liberar em Configurações > Sistema > Configurações avançadas do sistema.
 - **Descoberta SSDP:** testada só contra um respondedor falso local. Para LG NetCast a resposta depende do firmware; se não aparecer, adicione pelo IP.
 
@@ -118,7 +118,8 @@ Cada driver é testado contra uma TV falsa que roda no próprio teste, em `127.0
 
 - **NetCast:** pedido de código, chave certa e errada, código das teclas, ponteiro, escape de XML no texto, novo pareamento quando a TV esquece a sessão e a cada 10 minutos.
 - **webOS:** registro com e sem `client-key`, recusa e prazo esgotado, setas e cliques pelo pointer socket, volume e texto por SSAP.
-- **Samsung:** nome em base64 e token na URL, token devolvido na primeira conexão, teclas, ponteiro, texto e acesso negado.
+- **Samsung:** nome em base64 e token na URL, token devolvido na primeira conexão, teclas, ponteiro, texto e acesso negado; MAC lido da API REST e guardado com o token.
+- **Wake-on-LAN:** formato do pacote mágico, destinos (broadcast e a própria TV) e entrega por UDP local.
 - **Roku:** consulta inicial, `keypress`, texto letra a letra com escape, recusa.
 - **SSDP:** classificação das respostas de cada marca e uma busca completa contra um respondedor UDP falso.
 

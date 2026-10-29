@@ -19,6 +19,8 @@ import java.util.concurrent.TimeoutException
  * Modelos 2018+ usam `wss://tv:8002` e exigem token: na primeira conexão a TV pergunta
  * se permite o controle e, aceito, manda o token no evento `ms.channel.connect`.
  * Modelos 2016–2017 usam `ws://tv:8001` sem token.
+ * A credencial guardada é `token|MAC`: o MAC vem de `http://tv:8001/api/v2/` e serve para
+ * ligar a TV por Wake-on-LAN (na TV: "Ligar com dispositivo móvel" ativado).
  *
  * Implementado pela documentação pública e por bibliotecas abertas; não testado em aparelho real.
  */
@@ -33,6 +35,26 @@ class SamsungTizen(
 
     private var canal: CanalWs? = null
     private val trava = Any()
+
+    internal companion object {
+        fun token(credencial: String?) = credencial?.substringBefore('|')?.ifBlank { null }
+        fun mac(credencial: String?) = credencial?.substringAfter('|', "")?.ifBlank { null }
+        fun juntar(token: String?, mac: String?) = if (mac == null) token else "${token.orEmpty()}|$mac"
+    }
+
+    /** MAC da TV pela API REST (`device.wifiMac`); null se não responder. */
+    internal fun lerMac(porta: Int = 8001): String? {
+        val (codigo, corpo) = Rede.get(Rede.http, "http://$host:$porta/api/v2/")
+        if (codigo != 200) return null
+        val device = runCatching { Json.parseToJsonElement(corpo).jsonObject["device"]?.jsonObject }.getOrNull()
+        return device?.get("wifiMac")?.jsonPrimitive?.contentOrNull?.takeIf { WakeOnLan.valido(it) }
+    }
+
+    override fun ligar(credencial: String?): Boolean {
+        val mac = mac(credencial) ?: return false
+        WakeOnLan.acordar(mac, host)
+        return true
+    }
 
     private fun b64(s: String) = Base64.getEncoder().encodeToString(s.toByteArray(Charsets.UTF_8))
 
@@ -50,7 +72,7 @@ class SamsungTizen(
             val conectado = CompletableFuture<String?>()
             val cliente = if (seguro) Rede.tvAutoassinada else Rede.http
             val ws = try {
-                CanalWs(cliente, url(porta, seguro, credencial), { texto ->
+                CanalWs(cliente, url(porta, seguro, token(credencial)), { texto ->
                     val msg = runCatching { Json.parseToJsonElement(texto).jsonObject }.getOrNull()
                     when (msg?.get("event")?.jsonPrimitive?.contentOrNull) {
                         "ms.channel.connect" -> conectado.complete(
@@ -66,9 +88,9 @@ class SamsungTizen(
                 continue
             }
             try {
-                val token = conectado.get(prazoPareamentoMs, TimeUnit.MILLISECONDS)
+                val token = conectado.get(prazoPareamentoMs, TimeUnit.MILLISECONDS) ?: token(credencial)
                 canal = ws
-                return Pareamento.Pronto(token ?: credencial)
+                return Pareamento.Pronto(juntar(token, mac(credencial) ?: runCatching { lerMac() }.getOrNull()))
             } catch (e: TimeoutException) {
                 ws.fechar()
                 throw ErroTv("A TV não autorizou a tempo. Aceite o pedido que aparece na tela.")

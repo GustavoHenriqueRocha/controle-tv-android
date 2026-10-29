@@ -140,7 +140,34 @@ class ControleViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun tecla(tecla: Tecla) = rodar { it.tecla(tecla) }
+    fun tecla(tecla: Tecla) {
+        if (tecla == Tecla.ENERGIA && !conectado) ligar() else rodar { it.tecla(tecla) }
+    }
+
+    /** TV desligada não escuta a rede: manda o Wake-on-LAN e tenta conectar quando ela subir. */
+    private fun ligar() {
+        val tv = atual ?: return
+        viewModelScope.launch(fila) {
+            val t = tradutor ?: Tradutores.criar(tv.marca, tv.host).also { tradutor = it }
+            val tentou = runCatching { t.ligar(tv.credencial) }.getOrDefault(false)
+            if (!tentou) {
+                status = "Esta TV não liga pela rede. Use o controle dela."
+                return@launch
+            }
+            status = "Ligando ${tv.nome}…"
+            repeat(6) {
+                delay(3_000)
+                val ok = runCatching { t.conectar(tv.credencial) is Pareamento.Pronto }.getOrDefault(false)
+                if (ok) {
+                    conectado = true
+                    recursos = t.recursos
+                    status = ""
+                    return@launch
+                }
+            }
+            status = "A TV não respondeu. Confira se \"Ligar com dispositivo móvel\" está ativado nela."
+        }
+    }
     fun clicar() = rodar { it.clicar() }
     fun rolar(paraCima: Boolean) = rodar { it.rolar(paraCima) }
     fun enviarTexto(texto: String) = rodar { it.enviarTexto(texto) }

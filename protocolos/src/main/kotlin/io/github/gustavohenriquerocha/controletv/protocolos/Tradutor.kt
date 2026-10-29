@@ -56,6 +56,9 @@ interface Tradutor : AutoCloseable {
     /** Escreve [valor] no campo de texto aberto na TV e confirma. */
     fun enviarTexto(valor: String): Unit = throw ErroTv("${marca.descricao} não aceita texto")
 
+    /** Liga a TV desligada (Wake-on-LAN), se a [credencial] guardada permitir. Devolve se tentou. */
+    fun ligar(credencial: String?): Boolean = false
+
     override fun close() {}
 }
 
